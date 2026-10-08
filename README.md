@@ -14,6 +14,7 @@ python3 -m venv .venv
 .venv/bin/python Online_ESP32C3_Flasher/esp32-1352/scripts/fetch_upstream.py
 .venv/bin/python Online_ESP32C3_Flasher/esp32-1352/scripts/extract_assets.py
 .venv/bin/python Online_ESP32C3_Flasher/esp32-1352/scripts/check_assets.py
+.venv/bin/python Online_ESP32C3_Flasher/lan-host/extract_960.py
 ```
 
 The upstream input is downloaded from
@@ -29,3 +30,9 @@ The owner reported successful PS4 execution using the ESP32 on 2026-10-08.
 LAN host HTTP and asset tests pass; physical PS4 LAN execution still needs
 confirmation. Earlier ESP32 Wi-Fi initialization failures remain unexplained;
 the working diagnostic wrappers are retained.
+
+The LAN host also serves the original CSSFontFace/Lapse bundle for **9.60**.
+Root and User's Guide requests select the bundle using the PS4 User-Agent.
+The 9.60 console can use the same DNS settings; select **Lapse** and press
+**Jeilbrek** on its page. Firmware 12.xx is not enabled. No ESP32 reflash was
+performed for this LAN-only addition. Physical 9.60 execution is unverified.

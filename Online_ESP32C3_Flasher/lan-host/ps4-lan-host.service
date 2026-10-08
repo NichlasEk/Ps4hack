@@ -1,11 +1,12 @@
 [Unit]
-Description=Local PS4 13.52 web host and telemetry logger
+Description=Local PS4 9.60 and 13.xx web host and telemetry logger
 
 [Service]
 Type=simple
 WorkingDirectory=/home/nichlas/Ps4hack/Online_ESP32C3_Flasher/lan-host
 ExecStartPre=/usr/bin/python3 /home/nichlas/Ps4hack/Online_ESP32C3_Flasher/esp32-1352/scripts/extract_assets.py
 ExecStartPre=/usr/bin/python3 /home/nichlas/Ps4hack/Online_ESP32C3_Flasher/esp32-1352/scripts/check_assets.py
+ExecStartPre=/usr/bin/python3 /home/nichlas/Ps4hack/Online_ESP32C3_Flasher/lan-host/extract_960.py
 ExecStart=/usr/bin/python3 /home/nichlas/Ps4hack/Online_ESP32C3_Flasher/lan-host/server.py --bind 192.168.32.88 --port 8088
 Restart=on-failure
 RestartSec=3

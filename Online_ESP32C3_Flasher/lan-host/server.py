@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""LAN-only PS4 13.52 asset host with persistent request and /t telemetry logs."""
+"""LAN PS4 9.60 and 13.xx asset host with request and /t telemetry logs."""
 import argparse
 from datetime import datetime, timezone
 import gzip
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import re
 from pathlib import Path
 import threading
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -20,7 +21,40 @@ TYPES = {
     ".png": "image/png",
     ".bin": "application/octet-stream",
     ".appcache": "text/cache-manifest; charset=utf-8",
+    ".manifest": "text/cache-manifest; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
 }
+
+
+def firmware_landing(user_agent):
+    match = re.search(r"PlayStation\s+4[ /](\d+)\.(\d+)", user_agent)
+    if not match:
+        return None
+    firmware = tuple(map(int, match.groups()))
+    if firmware == (9, 60):
+        return "/960/index.html"
+    if firmware in {(13, 2), (13, 4), (13, 50), (13, 52)}:
+        return LANDING
+    return None
+
+
+def load_960_assets():
+    base = ROOT / "generated-960"
+    manifest = json.loads((base / "asset-manifest.json").read_text())
+    assets = {}
+    for item in manifest["assets"]:
+        route = item["route"]
+        if not route.startswith("/960/") or ".." in route.split("/"):
+            raise ValueError(f"Invalid 9.60 route: {route}")
+        packed = (base / (route.removeprefix("/960/") + ".gz")).read_bytes()
+        raw = gzip.decompress(packed)
+        if (len(packed) != item["compressed_bytes"] or len(raw) != item["bytes"]
+                or hashlib.sha256(raw).hexdigest() != item["sha256"]):
+            raise ValueError(f"9.60 asset mismatch: {route}")
+        assets[route] = (packed, raw, TYPES[Path(route).suffix])
+    if len(assets) != 30 or "/960/index.html" not in assets:
+        raise ValueError("Expected 30 original CSSFontFace assets")
+    return assets
 
 
 class Journal:
@@ -78,6 +112,7 @@ class Host(ThreadingHTTPServer):
 
     def __init__(self, address, asset_dir, log_dir):
         self.assets = load_assets(asset_dir)
+        self.assets.update(load_960_assets())
         self.journal = Journal(log_dir)
         super().__init__(address, Handler)
         self.journal.write("server", event="start", bind=address[0],
@@ -119,13 +154,24 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = unquote(urlsplit(self.path).path)
-        if path.startswith("/document/"):
-            return self.reply(302, Location=LANDING)
-        if path in ("/", "/index.html", "/main.html", "/1302-1352", "/1302-1352/"):
-            return self.reply(302, Location=LANDING)
+        user_agent = self.headers.get("User-Agent", "")
+        landing = firmware_landing(user_agent)
+        if path.startswith("/document/") or path in ("/", "/index.html", "/main.html"):
+            if landing:
+                return self.reply(302, Location=landing, Vary="User-Agent")
+            return self.reply(200, b"PS4 LAN host: firmware 9.60, 13.02, 13.04, 13.50, 13.52.\n"
+                              b"Open this address from a supported PS4. No matching firmware detected.\n",
+                              Vary="User-Agent")
+        if path.startswith(("/960/", "/1302-1352/")) or path in ("/960", "/1302-1352"):
+            expected = "/960/index.html" if path.startswith("/960") else LANDING
+            if "PlayStation" in user_agent and landing != expected:
+                return self.reply(403, b"Wrong firmware for this host. Open / to select your firmware.\n",
+                                  Vary="User-Agent")
+        if path in ("/960", "/960/", "/1302-1352", "/1302-1352/"):
+            return self.reply(302, Location=expected, Vary="User-Agent")
         if path == "/healthz":
             body = json.dumps(dict(status="ok", assets=len(self.server.assets),
-                                   target="PS4 13.52")).encode()
+                                   targets=["9.60", "13.02", "13.04", "13.50", "13.52"])).encode()
             return self.reply(200, body, "application/json")
         asset = self.server.assets.get(path)
         if asset is None:

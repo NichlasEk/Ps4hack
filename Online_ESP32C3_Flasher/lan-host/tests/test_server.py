@@ -59,14 +59,46 @@ class HostTest(unittest.TestCase):
         self.assertEqual(body, b"")
 
     def test_root_and_missing_resources(self):
-        status, headers, _ = self.request("GET", "/document/sw/ps4/index.html", headers={"Host": "manuals.playstation.net"})
+        ua = {"User-Agent": "Mozilla/5.0 (PlayStation 4/13.52)", "Host": "manuals.playstation.net"}
+        status, headers, _ = self.request("GET", "/document/sw/ps4/index.html", headers=ua)
         self.assertEqual(status, 302)
         self.assertEqual(headers["Location"], "/1302-1352/index.html")
-        status, headers, _ = self.request("GET", "/")
+        status, headers, _ = self.request("GET", "/", headers=ua)
         self.assertEqual(status, 302)
         self.assertEqual(headers["Location"], "/1302-1352/index.html")
         for path in ("/../../README.md", "/%2e%2e/README.md", "/1302-1352/missing.js", "/logs/"):
             self.assertEqual(self.request("GET", path)[0], 404)
+
+    def test_firmware_selection_and_wrong_bundle_rejection(self):
+        for fw, target in [("9.60", "/960/index.html"), ("13.52", "/1302-1352/index.html")]:
+            ua = {"User-Agent": f"Mozilla/5.0 (PlayStation 4/{fw})"}
+            for entry in ("/", "/index.html", "/document/en/ps4/index.html"):
+                status, headers, _ = self.request("GET", entry, headers=ua)
+                self.assertEqual(status, 302)
+                self.assertEqual(headers["Location"], target)
+                self.assertEqual(headers["Vary"], "User-Agent")
+            self.assertEqual(self.request("GET", target, headers=ua)[0], 200)
+            wrong = "/960/" if fw == "13.52" else "/1302-1352/"
+            self.assertEqual(self.request("GET", wrong + "index.html", headers=ua)[0], 403)
+        for fw in ("9.00", "12.00", "13.00", "14.00"):
+            ua = {"User-Agent": f"Mozilla/5.0 (PlayStation 4/{fw})"}
+            self.assertEqual(self.request("GET", "/", headers=ua)[0], 200)
+            self.assertEqual(self.request("GET", "/960/index.html", headers=ua)[0], 403)
+            self.assertEqual(self.request("GET", "/1302-1352/index.html", headers=ua)[0], 403)
+
+    def test_960_cache_and_payload_assets(self):
+        manifest = json.loads((ROOT / "generated-960/asset-manifest.json").read_text())
+        ua = {"User-Agent": "Mozilla/5.0 (PlayStation 4/9.60)", "Accept-Encoding": "gzip"}
+        for item in manifest["assets"]:
+            with self.subTest(route=item["route"]):
+                status, headers, body = self.request("GET", item["route"], headers=ua)
+                self.assertEqual(status, 200)
+                self.assertEqual(hashlib.sha256(gzip.decompress(body)).hexdigest(), item["sha256"])
+        text = self.host.assets["/960/cache.manifest"][1].decode()
+        refs = text.split("CACHE:\n", 1)[1].split("NETWORK:", 1)[0].split()
+        self.assertEqual(len(refs), 29)
+        for ref in refs:
+            self.assertIn("/960/" + ref, self.host.assets)
 
     def test_telemetry_is_saved_as_json(self):
         detail = "test med åäö och rad\n2"

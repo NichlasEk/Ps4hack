@@ -7,7 +7,22 @@ PS4-webbläsaren. Spara gärna ett bokmärke. Automatisk IP och DNS kan behålla
 Användarhandboken kräver den separata DNS-installationen nedan. Android kan visa
 ”unsupported”; själva jailbreaket kräver en kompatibel PS4.
 
-Hosten använder samma 15 oförändrade tillgångar för 13.52 som ESP32-bygget.
+Hosten väljer sida efter PS4:ans firmware: **9.60** använder CSSFontFace/Lapse,
+och **13.02, 13.04, 13.50, 13.52** använder den befintliga 13.xx-sidan.
+Övriga versioner får en informationssida. En PS4 med fel firmware nekas
+åtkomst till den andra versionens filer, även via en direktlänk.
+
+På 9.60-sidan: välj **Lapse** och tryck **Jeilbrek**. Inget PPPwn-steg eller
+firmwarebyte behövs för den här vägen. Fysiskt genomförande på 9.60 återstår
+att verifiera. 12.xx-konsolens BD-upplägg berörs inte.
+
+Hosten använder samma 15 oförändrade tillgångar för 13.52 som ESP32-bygget,
+samt 30 tillgångar ur samma upstream-binär för 9.60. `extract_960.py` verifierar
+binärens SHA-256 och hela cachemanifestets filuppsättning. Skript och patchar
+har matchats byte för byte mot originalets Arduino-headerfiler. Originalets
+versionsuppslag väljer `950.bin` även för 9.60, vilket har kontrollerats genom
+att köra enbart konstantuppslaget i Node. GoldHEN-payloaden är originalets
+293120 byte och matchar byte för byte den som medföljer 13.xx-paketet.
 De återskapas och kontrolleras från den medföljande upstream-binären vid start.
 Git behövs inte för drift, men behåll även katalogen `../esp32-1352/` och
 upstream-binären i `../goldhen24b1812/bins/` vid flytt eller säkerhetskopiering.
@@ -29,7 +44,7 @@ Tjänsten lyssnar på IPv4-adressen `192.168.32.88`, port `8088`.
 Om datorns adress ändras behöver tjänstens bind-adress uppdateras.
 Inga router-, brandväggs- eller DNS-inställningar har ändrats.
 
-## Användarhandboken (förberett, kräver installation)
+## Användarhandboken
 
 Kör i en lokal terminal:
 
@@ -53,7 +68,9 @@ vanliga namnuppslagning. Återställ automatisk DNS för att ångra på konsolen
 DNS har provkörts utan administratörsrättigheter på testport 1053:
 handbokens IPv4-adress omdirigeras, IPv6-svar undertrycks för samma domän,
 och andra domäner slås upp via routern. Konfiguration och systemd-enheter
-har validerats. Installation på port 53/80 och fysiskt PS4-test återstår.
+har validerats. Systemtjänsterna är nu aktiva på denna dator. Versionsval och
+hämtning av båda startsidorna genom port 80 har verifierats med simulerade
+PS4-användaragenter. Fysiskt PS4-test av 9.60 återstår.
 HTTP-proxyn gör att HTTP-loggen ser datorns IP som klient; användaragent
 och jailbreaktelemetri bevaras.
 
@@ -71,8 +88,10 @@ jailbreakets `/t`-telemetri. Loggarna sparas mellan tjänstens omstarter.
 Tidsstämplarna är i UTC. Lokala kontrollanrop har användaragenten
 `PS4LANHost-LocalValidation/1` och telemetritaggen `HOST-SELFTEST`.
 
-Fyra integrationstester har passerat, inklusive samtliga 15 tillgångars
-hashar, komprimering, routning och sparad telemetri. Den körande tjänsten har
+Sex integrationstester har passerat, inklusive samtliga 45 tillgångars
+hashar, komprimering, versionsval, felversion, cache och sparad telemetri.
+9.60-originalet visar sin körlogg på skärmen och skickar inte `/t`-telemetri;
+servern sparar dess HTTP-anrop. Den körande tjänsten har
 också kontrollerats via datorns LAN-adress. Detta ersätter inte ett test från
 en fysisk PS4 över hemnätverket.
 
