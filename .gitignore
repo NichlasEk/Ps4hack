@@ -1,0 +1,6 @@
+.venv/
+XiaoESP32C3-CSSFontFace-Xploithost/
+Online_ESP32C3_Flasher/*
+!Online_ESP32C3_Flasher/esp32-1352/
+!Online_ESP32C3_Flasher/lan-host/
+__pycache__/

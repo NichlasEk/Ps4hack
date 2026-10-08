@@ -1,0 +1,6 @@
+.pio/
+generated/
+data/
+src/assets.generated.h
+artifacts/
+__pycache__/

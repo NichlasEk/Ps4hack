@@ -1,0 +1,9 @@
+[Unit]
+Description=PS4 User Guide HTTP listener on the home LAN
+
+[Socket]
+ListenStream=192.168.32.88:80
+FreeBind=true
+
+[Install]
+WantedBy=sockets.target

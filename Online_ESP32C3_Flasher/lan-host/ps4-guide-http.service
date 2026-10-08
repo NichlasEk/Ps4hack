@@ -1,0 +1,9 @@
+[Unit]
+Description=Forward PS4 User Guide HTTP to the local host
+Requires=ps4-guide-http.socket
+After=ps4-guide-http.socket
+
+[Service]
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd 192.168.32.88:8088
+DynamicUser=true
+NoNewPrivileges=true
